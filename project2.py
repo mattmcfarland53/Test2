@@ -96,17 +96,27 @@ if input_method == "Manual Entry":
                 "Assigned": []
             })
             st.success(f"Added item '{item_name}' with cost ${item_cost:.2f} to the bill.")
+            st.rerun()
         elif add_item:
             st.error("Both name and cost are required.")
 
 elif input_method == "Upload CSV":
     st.write("CSV must include columns: `Name, Cost`")
-    csv_file = st.file_uploader("Upload CSV", type=["csv"])
-    if csv_file:
+
+    # Always show the uploader
+    csv_file = st.file_uploader("Upload CSV", type=["csv"], key="csv_upload")
+
+    # Initialize flag if needed
+    if "csv_uploaded" not in st.session_state:
+        st.session_state.csv_uploaded = False
+
+    # ⚡ If a file is uploaded, reset uploaded flag
+    if csv_file and not st.session_state.csv_uploaded:
         try:
             df = pd.read_csv(csv_file)
             required_columns = {"Name", "Cost"}
             if required_columns.issubset(df.columns):
+                df = df.dropna(subset=["Name", "Cost"])  # optional: clean up
                 for _, row in df.iterrows():
                     st.session_state.bill.append({
                         "Name": row["Name"],
@@ -114,10 +124,19 @@ elif input_method == "Upload CSV":
                         "Assigned": []
                     })
                 st.success("CSV uploaded and bill items added.")
+
+                st.session_state.csv_uploaded = True  # ✅ mark it uploaded
+                st.rerun()
             else:
                 st.error("CSV must have 'Name' and 'Cost' columns.")
         except Exception as e:
             st.error(f"Error reading CSV: {e}")
+
+    # ⚡ If no file uploaded, always keep the flag False
+    if not csv_file:
+        st.session_state.csv_uploaded = False
+
+
 
 # Show current bill with edit/remove options
 if st.session_state.bill:
@@ -185,8 +204,8 @@ for item in st.session_state.bill:
 total_pre_split = sum(member_totals.values())
 for m in member_totals:
     share = member_totals[m] / total_pre_split if total_pre_split else 0
-    member_totals[m] += tax * share
-    member_totals[m] += tip * share
+    #member_totals[m] += share
+
 
 # Display receipt totals
 st.markdown("---")
